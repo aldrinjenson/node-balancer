@@ -6,6 +6,10 @@ Load balancer system for horizontal scaling implemented in Node.Js
 
 ![demo gif](output.gif)
 
+### One balancer + 3 nodes
+
+![terminal gif](term.jpg)
+
 ## Working
 
 - The system consists of one master server and a template slave server
