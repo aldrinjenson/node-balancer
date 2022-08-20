@@ -1,5 +1,4 @@
 const express = require("express");
-const axios = require("axios").default;
 var util = require("util");
 
 const exec = util.promisify(require("child_process").exec);

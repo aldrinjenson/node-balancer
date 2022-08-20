@@ -1,31 +1,9 @@
 const express = require("express");
+const allSlaves = require("./allSlaves");
 const axios = require("axios").default;
 
 const app = express();
 const PORT = process.env.PORT || 5000;
-
-const allSlaves = [
-  {
-    url: "http://localhost:5501",
-    isActive: false,
-  },
-  {
-    url: "http://localhost:5502",
-    isActive: false,
-  },
-  {
-    url: "http://localhost:5503",
-    isActive: false,
-  },
-  {
-    url: "http://localhost:5504",
-    isActive: false,
-  },
-  {
-    url: "http://localhost:5505",
-    isActive: false,
-  },
-];
 let slaves = allSlaves;
 
 app.get("/", (_, res) => {
@@ -64,14 +42,13 @@ const ping = async () => {
   // ping and filter out dead slave nodes
   const newSlaves = await filterSlaves();
   console.log(newSlaves.length + " nodes alive");
-
   slaves = newSlaves;
 };
 ping();
 setInterval(() => {
   // ping every 10 seconds to see if all nodes are alive
   ping();
-}, 10000);
+}, 8000);
 
 app.get("/slavestatus", async (req, res) => {
   const newSlaves = await filterSlaves();
@@ -85,16 +62,11 @@ const incrementSlaveToUseCounter = () =>
 
 app.get("/code", async (req, res) => {
   let output = "";
-  let allowLoopToRun = true;
-
-  setTimeout(() => {
-    // to prevent the loop from checking infinitely in case all servers are active/busy
-    allowLoopToRun = false;
-  }, 2000);
-
   let slaveToUse = slaves[slaveToUseCounter];
   // find free slave
-  while (allowLoopToRun) {
+  const startTime = Date.now();
+  // to prevent the loop from checking infinitely in case all servers are active/busy
+  while (Date.now() - startTime <= 1000) {
     if (slaveToUse.isActive) {
       // find new slave if the current slave is active/busy
       incrementSlaveToUseCounter();
