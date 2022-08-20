@@ -15,6 +15,21 @@ let slaves = [
     isActive: false,
     index: 1,
   },
+  {
+    url: "http://localhost:5503",
+    isActive: false,
+    index: 1,
+  },
+  {
+    url: "http://localhost:5504",
+    isActive: false,
+    index: 1,
+  },
+  {
+    url: "http://localhost:5505",
+    isActive: false,
+    index: 1,
+  },
 ];
 
 app.get("/", (req, res) => {
@@ -35,16 +50,30 @@ const isSlaveAlive = (slave = {}, index) =>
     resolve(func());
   });
 
-app.get("/slavestatus", async (req, res) => {
-  const aliveSlaves = [];
+const filterSlaves = async () => {
   const promises = [];
   for (const [index, sl] of slaves.entries()) {
     promises.push(isSlaveAlive(sl, index));
   }
-  let data = await Promise.all(promises);
+  const data = await Promise.all(promises);
   const aliveIndices = data.filter((i) => i != -1);
-
   const newSlaves = slaves.filter((s) => aliveIndices.includes(s.index));
+  return newSlaves;
+};
+
+const main = async () => {
+  const newSlaves = await filterSlaves();
+  console.log({ aliveNodes: newSlaves });
+  slaves = newSlaves;
+};
+main();
+
+setInterval(() => {
+  main();
+}, 10000);
+
+app.get("/slavestatus", async (req, res) => {
+  const newSlaves = await filterSlaves();
   slaves = newSlaves;
   res.send(newSlaves);
 });
@@ -85,6 +114,8 @@ app.get("/code", async (req, res) => {
     });
     // get result
     slaves[slaveToUse.index].isActive = false;
+
+    console.log({ output });
 
     res.send(output);
   } catch (error) {
