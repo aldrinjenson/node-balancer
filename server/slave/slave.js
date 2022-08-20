@@ -13,8 +13,6 @@ const runBashScript = async (code = "") => {
     console.log({ output, err });
     return { output, err };
   } catch (err) {
-    console.log("error is present?");
-
     console.log(err);
     console.log(err.message);
     return { output: "", err: err.stderr };

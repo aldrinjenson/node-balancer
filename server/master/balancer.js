@@ -4,35 +4,31 @@ const axios = require("axios").default;
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-let slaves = [
+const allSlaves = [
   {
     url: "http://localhost:5501",
     isActive: false,
-    index: 0,
   },
   {
     url: "http://localhost:5502",
     isActive: false,
-    index: 1,
   },
   {
     url: "http://localhost:5503",
     isActive: false,
-    index: 1,
   },
   {
     url: "http://localhost:5504",
     isActive: false,
-    index: 1,
   },
   {
     url: "http://localhost:5505",
     isActive: false,
-    index: 1,
   },
 ];
+let slaves = allSlaves;
 
-app.get("/", (req, res) => {
+app.get("/", (_, res) => {
   res.send("Load Balancer active");
 });
 
@@ -40,9 +36,10 @@ const isSlaveAlive = (slave = {}, index) =>
   new Promise((resolve) => {
     const func = async () => {
       try {
-        const { data } = await axios.get(slave.url + "/isalive");
-        if (data.alive) return index;
-        else throw Error("invalid status");
+        const data = await axios.get(slave.url + "/isalive");
+
+        if (data?.data?.alive) return index;
+        else return -1;
       } catch (error) {
         return -1;
       }
@@ -52,24 +49,28 @@ const isSlaveAlive = (slave = {}, index) =>
 
 const filterSlaves = async () => {
   const promises = [];
-  for (const [index, sl] of slaves.entries()) {
+  for (const [index, sl] of allSlaves.entries()) {
     promises.push(isSlaveAlive(sl, index));
   }
   const data = await Promise.all(promises);
   const aliveIndices = data.filter((i) => i != -1);
-  const newSlaves = slaves.filter((s) => aliveIndices.includes(s.index));
+  const newSlaves = allSlaves.filter((s, index) =>
+    aliveIndices.includes(index)
+  );
   return newSlaves;
 };
 
-const main = async () => {
+const ping = async () => {
+  // ping and filter out dead slave nodes
   const newSlaves = await filterSlaves();
-  console.log({ aliveNodes: newSlaves });
+  console.log(newSlaves.length + " nodes alive");
+
   slaves = newSlaves;
 };
-main();
-
+ping();
 setInterval(() => {
-  main();
+  // ping every 10 seconds to see if all nodes are alive
+  ping();
 }, 10000);
 
 app.get("/slavestatus", async (req, res) => {
@@ -87,7 +88,7 @@ app.get("/code", async (req, res) => {
   let allowLoopToRun = true;
 
   setTimeout(() => {
-    // to prevent the loop from checking infinitely in case all servers are busy
+    // to prevent the loop from checking infinitely in case all servers are active/busy
     allowLoopToRun = false;
   }, 2000);
 
@@ -95,6 +96,7 @@ app.get("/code", async (req, res) => {
   // find free slave
   while (allowLoopToRun) {
     if (slaveToUse.isActive) {
+      // find new slave if the current slave is active/busy
       incrementSlaveToUseCounter();
       slaveToUse = slaves[slaveToUseCounter];
       continue;
@@ -102,26 +104,26 @@ app.get("/code", async (req, res) => {
     break;
   }
 
+  // a slave has been found
+  const currentSlaveIndex = slaveToUseCounter;
   try {
     // assign work
     const slaveUrl = slaveToUse.url;
-    slaves[slaveToUseCounter].isActive = true;
+    slaves[currentSlaveIndex].isActive = true;
     const { code, lang } = req.query;
-    console.log("sending request to slave: " + slaveToUseCounter);
+    console.log("sending request to slave: " + currentSlaveIndex);
     incrementSlaveToUseCounter();
     const { data: output } = await axios.get(slaveUrl + "/work", {
       params: { code, lang },
     });
-    // get result
-    slaves[slaveToUse.index].isActive = false;
-
+    // get result and mark the slave as free
+    slaves[currentSlaveIndex].isActive = false;
     console.log({ output });
-
     res.send(output);
   } catch (error) {
     console.log("error received from slave" + error);
     output = "Error" + error;
-    slaves[slaveToUse.index].isActive = false;
+    slaves[currentSlaveIndex].isActive = false;
     res.send(output);
   }
 });
