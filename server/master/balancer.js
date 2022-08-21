@@ -92,6 +92,10 @@ app.get("/code", async (req, res) => {
     slaves[currentSlaveIndex].isActive = false;
     console.log({ output });
     res.send(output);
+
+    // or, more performant, but the client will have to make request to new url and will know the slave server ip
+    // const urlToSend = slaveUrl + `/work?code=${code}&lang=${lang}`;
+    // res.redirect(urlToSend);
   } catch (error) {
     console.log("error received from slave" + error);
     output = "Error" + error;
